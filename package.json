@@ -1,0 +1,20 @@
+{
+  "name": "connectfourenvironment",
+  "version": "1.0.0",
+  "description": "",
+  "main": "build/main.js",
+  "scripts": {
+    "compile": "tsc",
+    "start": "npm run compile && electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "disappointedlama",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^27.0.1"
+  },
+  "dependencies": {
+    "copyfiles": "^2.4.1",
+    "typescript": "^5.2.2"
+  }
+}
