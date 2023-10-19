@@ -1,0 +1,55 @@
+:root{
+    --baseWidth:80vh;
+    --largeSquareWidth:calc(var(--baseWidth)/7);
+}
+.board{
+    display: flex;
+    flex-direction: row;
+}
+.board-col{
+    display: flex;
+    flex-direction: column;
+    border-right: 2px solid black;
+    z-index: 1;
+}
+.board-col:first-child{
+    border-left: 2px solid black;
+}
+.board-col:hover{
+    opacity: 0.5;
+}
+.board-square{
+    z-index: 0;
+    width:var(--largeSquareWidth);
+    height:var(--largeSquareWidth);
+    border-bottom:2px solid black;
+    border-collapse: collapse;
+    background-color: darkblue;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.board-square:first-child{
+    border-top:2px solid black;
+}
+.no-circle{
+    width:100%;
+    height:100%;
+    border: 2px solid black;
+    border-radius: 100%;
+    background-color: gray;
+}
+.red-circle{
+    width:100%;
+    height:100%;
+    border: 2px solid black;
+    border-radius: 100%;
+    background-color: red;
+}
+.yellow-circle{
+    width:100%;
+    height:100%;
+    border: 2px solid black;
+    border-radius: 100%;
+    background-color: yellow;
+}
