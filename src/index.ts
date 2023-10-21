@@ -2,6 +2,9 @@ import { execFile } from 'child_process';
 enum MvEnum{
     m0=0,mv1=1,mv2=2,mv3=3,mv4=4,mv5=5,mv6=6,noMove=7
 }
+enum GameResult{
+    Undecided=0,WonByRed=1,WonByYellow=2,Draw=3
+}
 type MvList = {moves:Array<number>, len:MvEnum}
 const red=0;
 const yellow=1;
@@ -100,9 +103,11 @@ class Board{
         this.board[asInd][pos][move]=true;
         this.board[both][pos][move]=true;
         this.side=!this.side
+        this.ply++
         console.log(this)
     }
     unmakeMove():void{
+        this.ply--
         this.side=!this.side
         const last=this.moveHistory.length-1
         const move=parseInt(this.moveHistory.charAt(last))
@@ -123,20 +128,89 @@ class Board{
     getHistory():string{
         return this.moveHistory
     }
+    private isWonBy(side:number):Boolean{
+        const b=this.board[side]
+        //horizontal check
+        for(let i=0;i<6;i++){
+            for(let j=0;j<3;j++){
+                if(b[i][j] && b[i][j+1] && b[i][j+2] && b[i][j+3]) return true
+            }
+        }
+        //vertical check
+        for(let i=0;i<7;i++){
+            for(let j=0;j<3;j++){
+                if(b[j][i] && b[j+1][i] && b[j+2][i] && b[j+3][i]) return true
+            }
+        }
+        //diagonal checks
+        for(let i=0;i<3;i++){
+            for(let j=0;j<3;j++){
+                if(b[j][i] && b[j+1][i+1] && b[j+2][i+2] && b[j+3][i+3]) return true
+            }
+        }
+        for(let i=6;i>3;i--){
+            for(let j=0;j<3;j++){
+                if(b[j][i] && b[j+1][i-1] && b[j+2][i-2] && b[j+3][i-3]) return true
+            }
+        }
+        return false
+    }
+    getWinningRow():any[]{
+        for(let side=0;side<2;side++){
+            const b=this.board[side]
+            //horizontal check
+            for(let i=0;i<6;i++){
+                for(let j=0;j<3;j++){
+                    if(b[i][j] && b[i][j+1] && b[i][j+2] && b[i][j+3]) return [[i,j],[i,j+1],[i,j+2],[i,j+3]]
+                }
+            }
+            //vertical check
+            for(let i=0;i<7;i++){
+                for(let j=0;j<3;j++){
+                    if(b[j][i] && b[j+1][i] && b[j+2][i] && b[j+3][i]) return [[j,i],[j+1,i],[j+2,i],[j+3,i]]
+                }
+            }
+            //diagonal checks
+            for(let i=0;i<3;i++){
+                for(let j=0;j<3;j++){
+                    if(b[j][i] && b[j+1][i+1] && b[j+2][i+2] && b[j+3][i+3]) return [[j,i],[j+1,i+1],[j+2,i+2],[j+3,i+3]]
+                }
+            }
+            for(let i=6;i>3;i--){
+                for(let j=0;j<3;j++){
+                    if(b[j][i] && b[j+1][i-1] && b[j+2][i-2] && b[j+3][i-3]) return [[j,i],[j+1,i-1],[j+2,i-2],[j+3,i-3]]
+                }
+            }
+        }
+        return []
+    }
+    getResult():GameResult{
+        if(this.isWonBy(red)){ return GameResult.WonByRed }
+        if(this.isWonBy(yellow)){ return GameResult.WonByYellow }
+        if(this.ply==42){ return GameResult.Draw }
+        return GameResult.Undecided
+    }
 }
 function visualizeBoard(brd:Board){
     const colors=['red-circle','yellow-circle','no-circle']
     for(let i=0;i<7;i++){
         for(let j=0;j<6;j++){
             const el = document.getElementById('circle'+i+'.'+j) as HTMLElement
-            el.classList.remove('no-circle','red-circle','yellow-circle')
+            el.classList.remove('no-circle','red-circle','yellow-circle','winning-circle')
             el.classList.add(colors[brd.getColor(j,i)])
         }
     }
 }
-type protocollSetting={playSelf:Boolean,playHuman:Boolean,firstMoveHuman:Boolean,}
+function visualizeWinningRow(arr:any[]){
+    for(let i=0;i<arr.length;i++){
+        const el = document.getElementById('circle'+arr[i][0]+'.'+arr[i][1]) as HTMLElement
+        el.classList.add('winning-circle')
+        console.log(el)
+    }
+}
+type protocollSetting={playSelf:Boolean,playHuman:Boolean,firstMoveHuman:Boolean,humanOnly:Boolean}
 class Protocoll{
-    private child:any;
+    private child1:any;
     private child2:any;
     private engine1:string;
     private engine2:string;
@@ -150,22 +224,28 @@ class Protocoll{
         this.settings=settings
         this.side=false;
         this.b=new Board();
-        this.child=execFile('./engines/'+engine1)
-        this.child.stdout.on('data',(data:string)=>{
+        if(settings.humanOnly){
+            this.players=[{name:'human'},{name:'human'}]
+            return
+        }
+        this.child1=execFile('./engines/'+engine1)
+        this.child1.stdout.on('data',(data:string)=>{
             console.log(data)
             const prefix='bestmove '
             if(data.includes(prefix)){
                 data=data.substring(data.lastIndexOf(prefix)+prefix.length,data.length)
                 let int=parseInt(data)
+                this.child1.stdin.write('stop\n')
                 this.tryMove(int,this.engine1)
             }
         })
+        this.child1.stderr.on('data',(data:any)=>{console.log(data)})
         if(settings.playHuman){
             if(settings.firstMoveHuman){
-                this.players=['human',this.engine1]
+                this.players=[{name:'human'},{name:this.engine1,process:this.child1}]
             }
             else{
-                this.players=[this.engine1,'human']
+                this.players=[{name:this.engine1,process:this.child1},{name:'human'}]
             }
         }
         else{
@@ -176,30 +256,90 @@ class Protocoll{
                 if(data.includes(prefix)){
                     data=data.substring(data.lastIndexOf(prefix)+prefix.length,data.length)
                     let int=parseInt(data)
+                    this.child2.stdin.write('stop\n')
                     this.tryMove(int,this.engine2)
                 }
             })
-            this.players=[this.engine1,this.engine2]
+            this.child2.stderr.on('data',(data:any)=>{console.log(data)})
+            this.players=[{name:this.engine1,process:this.child1},{name:this.engine2,process:this.child2}]
+            this.startEngine()
         }
     }
     tryMove(move:number,entity:any){
-        if(entity!==this.players[(this.side)?1:0]){
+        console.log('try move '+move+' by '+entity)
+        if(entity!==this.players[(this.side)?1:0].name){
             return
         }
         let list = this.b.generateLegalMoves()
         if(list.moves.includes(move)){
             this.b.makeMove(move)
             visualizeBoard(this.b)
+            const gameResult=this.b.getResult()
+            console.log('RESULT: '+gameResult)
+            if(gameResult){
+                if(gameResult!=GameResult.Draw) visualizeWinningRow(this.b.getWinningRow())
+                return
+            }
+            console.log('made move '+move)
             this.side=!this.side
             this.startEngine()
         }
     }
     private startEngine(){
-        if(this.players[(this.side)?1:0] == 'human'){
+        const asInd=(this.side)?1:0
+        if(this.players[asInd].name == 'human'){
+            console.log('humans turn')
             return
         }
-        this.child.stdin.write("position "+this.b.getHistory()+"\n")
-        this.child.stdin.write("go movetime 1000\n")
+        console.log('telling engine '+this.players[asInd].name+' to go')
+        this.players[asInd].process.stdin.write("position "+this.b.getHistory()+"\n")
+        console.log("position "+this.b.getHistory()+"\n")
+        this.players[asInd].process.stdin.write("go movetime 1000\n")
+        console.log('told engine '+this.players[asInd].name+' to go')
+    }
+    reset(){
+        this.side=false;
+        this.b=new Board();
+        if(this.settings.humanOnly){
+            this.players=[{name:'human'},{name:'human'}]
+            return
+        }
+        this.child1=execFile('./engines/'+this.engine1)
+        this.child1.stdout.on('data',(data:string)=>{
+            console.log(data)
+            const prefix='bestmove '
+            if(data.includes(prefix)){
+                data=data.substring(data.lastIndexOf(prefix)+prefix.length,data.length)
+                let int=parseInt(data)
+                this.child1.stdin.write('stop\n')
+                this.tryMove(int,this.engine1)
+            }
+        })
+        this.child1.stderr.on('data',(data:any)=>{console.log(data)})
+        if(this.settings.playHuman){
+            if(this.settings.firstMoveHuman){
+                this.players=[{name:'human'},{name:this.engine1,process:this.child1}]
+            }
+            else{
+                this.players=[{name:this.engine1,process:this.child1},{name:'human'}]
+            }
+        }
+        else{
+            this.child2=execFile('./engines/'+this.engine2)
+            this.child2.stdout.on('data',(data:string)=>{
+                console.log(data)
+                const prefix='bestmove '
+                if(data.includes(prefix)){
+                    data=data.substring(data.lastIndexOf(prefix)+prefix.length,data.length)
+                    let int=parseInt(data)
+                    this.child2.stdin.write('stop\n')
+                    this.tryMove(int,this.engine2)
+                }
+            })
+            this.child2.stderr.on('data',(data:any)=>{console.log(data)})
+            this.players=[{name:this.engine1,process:this.child1},{name:this.engine2,process:this.child2}]
+            this.startEngine()
+        }
     }
 }
 function main(){
@@ -211,7 +351,7 @@ function main(){
         for(let j=0;j<6;j++){
             const square= document.createElement('div')
             square.classList.add('board-square')
-            square.innerHTML='<div class="no-circle" id="circle'+i+'.'+j+'"><div>'
+            square.innerHTML='<div class="no-circle" id="circle'+i+'.'+j+'"></div>'
             square.setAttribute('id','boardSquare'+i+'.'+j)
             col.appendChild(square)
         }
@@ -231,4 +371,5 @@ function main(){
     }
 }
 main()
-let prot=new Protocoll('ConnectFour.exe','',{playHuman:true,playSelf:false,firstMoveHuman:true})
+let prot=new Protocoll('ConnectFour.exe','ConnectFour2.exe',{playHuman:false,playSelf:false,firstMoveHuman:true,humanOnly:false})
+console.log(prot)
