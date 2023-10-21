@@ -2,12 +2,13 @@
 <html>
 <head>
     <link rel="stylesheet" href="static/css/index.css">
+    <script>let exports={};</script>
 </head>
 <body>
-    <div id="board" class="board">
+    <div>
+        <div id="board" class="board"></div>
+        <button onclick="resetGame()">Restart</button>
     </div>
-    <script>
-        require('./build/src/index.js')
-    </script>
+    <script src="./build/src/index.js"></script>
 </body>
 </html>

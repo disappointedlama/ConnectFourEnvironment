@@ -298,12 +298,14 @@ class Protocoll{
         console.log('told engine '+this.players[asInd].name+' to go')
     }
     reset(){
-        this.side=false;
-        this.b=new Board();
+        this.side=false
+        this.b=new Board()
+        visualizeBoard(this.b)
         if(this.settings.humanOnly){
             this.players=[{name:'human'},{name:'human'}]
             return
         }
+        this.child1.kill('SIGINT')
         this.child1=execFile('./engines/'+this.engine1)
         this.child1.stdout.on('data',(data:string)=>{
             console.log(data)
@@ -325,6 +327,7 @@ class Protocoll{
             }
         }
         else{
+            this.child2.kill('SIGINT')
             this.child2=execFile('./engines/'+this.engine2)
             this.child2.stdout.on('data',(data:string)=>{
                 console.log(data)
@@ -371,5 +374,8 @@ function main(){
     }
 }
 main()
+function resetGame(){
+    prot.reset()
+}
 let prot=new Protocoll('ConnectFour.exe','ConnectFour2.exe',{playHuman:false,playSelf:false,firstMoveHuman:true,humanOnly:false})
 console.log(prot)
