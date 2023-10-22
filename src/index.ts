@@ -209,26 +209,13 @@ function visualizeWinningRow(arr:any[]){
 class Settings{
     private engines:string[]
     private players:string[]
-    constructor(playHuman:Boolean,firstMoveHuman:Boolean,humanOnly:Boolean){
-        this.engines=readdirSync('./engines/').filter((value:string,index:number)=>{
+    constructor(){
+        this.engines=readdirSync('./engines/').filter((value:string)=>{
             if(value.endsWith('.exe')) return true
             return false;
         })
         this.engines.unshift('human')
-        if(humanOnly){
-            this.players=['human','human']
-        }
-        else if(playHuman){
-            if(firstMoveHuman){
-                this.players=[this.engines[0],this.engines[1]]
-            }
-            else{
-                this.players=[this.engines[1],this.engines[0]]
-            }
-        }
-        else{
-            this.players=[this.engines[0],this.engines[1]]
-        }
+        this.players=[this.engines[0],this.engines[1]]
         const el1=document.getElementById('player0') as HTMLSelectElement
         const el2=document.getElementById('player1') as HTMLSelectElement
         for(let i=0;i<this.engines.length;i++){
@@ -360,7 +347,14 @@ class Protocoll{
         this.setChildrenEventListeners()
     }
     tryMove(move:number,entity:any){
-        this.ensureChildrenMatchPlayers()
+        const gameResult=this.b.getResult()
+        if(!gameResult){
+            this.ensureChildrenMatchPlayers()
+        }
+        else if(gameResult!=GameResult.Draw) {
+            visualizeWinningRow(this.b.getWinningRow())
+            return
+        }
         console.log('try move '+move+' by '+entity)
         if(entity!==this.players[(this.side)?1:0]){
             return
@@ -369,7 +363,6 @@ class Protocoll{
         if(list.moves.includes(move)){
             this.b.makeMove(move)
             visualizeBoard(this.b)
-            const gameResult=this.b.getResult()
             console.log('RESULT: '+gameResult)
             if(gameResult){
                 if(gameResult!=GameResult.Draw) visualizeWinningRow(this.b.getWinningRow())
@@ -463,5 +456,5 @@ main()
 function resetGame(){
     prot.reset()
 }
-let prot=new Protocoll(new Settings(true,true,false))
+let prot=new Protocoll(new Settings())
 console.log(prot)
