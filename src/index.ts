@@ -214,17 +214,16 @@ class Settings{
             if(value.endsWith('.exe')) return true
             return false;
         })
-        this.engines.push('human')
-        console.log(this.engines)
+        this.engines.unshift('human')
         if(humanOnly){
             this.players=['human','human']
         }
         else if(playHuman){
             if(firstMoveHuman){
-                this.players=['human',this.engines[0]]
+                this.players=[this.engines[0],this.engines[1]]
             }
             else{
-                this.players=[this.engines[0],'human']
+                this.players=[this.engines[1],this.engines[0]]
             }
         }
         else{
@@ -244,6 +243,8 @@ class Settings{
             el1.appendChild(child1)
             el2.appendChild(child2)
         }
+        (document.getElementById('selectElement0'+this.players[0]) as HTMLOptionElement).selected=true;
+        (document.getElementById('selectElement1'+this.players[1]) as HTMLOptionElement).selected=true;
         el1.addEventListener('change',(event:Event)=>{
             const el=event.target as HTMLSelectElement
             (document.getElementById('selectElement1'+this.players[0]) as HTMLOptionElement).disabled=false;
