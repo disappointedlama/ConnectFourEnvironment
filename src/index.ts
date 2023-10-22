@@ -209,7 +209,9 @@ function visualizeWinningRow(arr:any[]){
 class Settings{
     private engines:string[]
     private players:string[]
+    private notifyEngines:(Function|undefined)[]
     constructor(){
+        this.notifyEngines=[undefined,undefined]
         this.engines=readdirSync('./engines/').filter((value:string)=>{
             if(value.endsWith('.exe')) return true
             return false;
@@ -240,6 +242,9 @@ class Settings{
             if(player!='human') {
                 (document.getElementById('selectElement1'+player) as HTMLOptionElement).disabled=true
             }
+            if(this.notifyEngines[0]!==undefined){
+                this.notifyEngines[0](player)
+            }
         })
         el2.addEventListener('change',(event:Event)=>{
             const el=event.target as HTMLSelectElement
@@ -249,12 +254,142 @@ class Settings{
             if(player!='human'){
                 (document.getElementById('selectElement0'+player) as HTMLOptionElement).disabled=true;
             }
+            if(this.notifyEngines[1]!==undefined){
+                this.notifyEngines[1](player)
+            }
         })
     }
     getPlayers():string[]{ return this.players }
+    setEngines(func0:Function,func1:Function){
+        this.notifyEngines[0]=func0
+        this.notifyEngines[1]=func1
+    }
+}
+class Engine{
+    private process:ChildProcess|undefined;
+    private player:string;
+    private index:number;
+    private callToMove:Function;
+    private verifyEngineOutput:Function;
+    constructor(file:string,index:number,callToMove:Function,verifyEngineOutput:Function){
+        if(file==='human'){
+            this.process=undefined
+        }
+        else{
+            this.process=execFile('./engines/'+file)
+        }
+        this.player=file
+        this.index=index
+        this.callToMove=callToMove
+        this.verifyEngineOutput=verifyEngineOutput
+        this.setInputEventListeners()
+        this.setProcessEventListeners()
+    }
+    private setInputEventListeners(){
+        const el = (document.getElementById('engineCommunicationInput'+this.index) as HTMLInputElement);
+        el.addEventListener('keydown',(event:KeyboardEvent)=>{
+            if(event.key==='Enter'){
+                const target=(event.target as HTMLInputElement)
+                let command = target.value
+                this.writeInputToOutput(command)
+                target.value=''
+                if(this.process!==undefined){
+                    this.process.stdin?.write(command+'\n')
+                }
+            }
+        })
+    }
+    private writeInputToOutput(cmd:string){
+        console.log(cmd)
+        const child=document.createElement('div')
+        child.classList.add('inputBlock')
+        child.innerText=cmd+'<<<<'
+        const parent=document.getElementById('engineCommunicationDisplay'+this.index) as HTMLElement
+        parent.insertBefore(child,parent.firstChild)
+    }
+    private setProcessEventListeners(){
+        if(this.process===undefined) return
+        this.process.stdout?.on('data',(data:string)=>{
+            const el = document.getElementById('engineCommunicationDisplay'+this.index) as HTMLDivElement
+            let lines=data.split('\n').filter((line:string)=>{
+                return this.verifyEngineOutput(line)
+            })
+            const child=document.createElement('div')
+            child.classList.add('outputBlock')
+            const span=document.createElement('span')
+            for(let i=0;i<lines.length;i++){
+                span.innerText=lines[i]
+                child.appendChild(span)
+            }
+            el.insertBefore(child,el.firstChild)
+            const prefix='bestmove '
+            if(data.includes(prefix)){
+                data=data.substring(data.lastIndexOf(prefix)+prefix.length,data.length)
+                let int=parseInt(data)
+                if(this.process!==undefined){
+                    this.process.stdin?.write('stop\n')
+                }
+                this.callToMove(int,this.player)
+            }
+        })
+        this.process.stderr?.on('data',(data:any)=>{console.log(data)})
+    }
+    clearOutputBox(){
+        (document.getElementById('engineCommunicationDisplay'+this.index) as HTMLInputElement).innerHTML='';
+    }
+    execute(cmd:string){
+        if(this.process!==undefined){
+            this.process.stdin?.write('stop\n')
+            this.process.stdin?.write(cmd)
+        }
+        else{
+            cmd='Your turn'
+        }
+        this.writeInputToOutput(cmd)
+    }
+    setProcessWrapper(){
+        return (file:string)=>{
+            this.setProcess(file)
+        }
+    }
+    setProcess(file:string){
+        if(this.player==='human'){
+            if(file==='human'){
+                this.process=undefined
+            }
+            else{
+                this.player=file
+                this.process=execFile('./engines/'+file)
+                this.clearOutputBox()
+                this.setProcessEventListeners()
+            }
+        }
+        else{
+            if(file!==this.player){
+                this.player=file
+                this.process?.kill('SIGINT')
+                this.clearOutputBox()
+                if(file==='human'){
+                    this.process=undefined
+                }
+                else{
+                    this.process=execFile('./engines/'+file)
+                }
+                this.setProcessEventListeners()
+            }
+        }
+    }
+    reset(){
+        if(this.process!==undefined){
+            this.process.kill('SIGINT')
+            this.process=execFile('./engines/'+this.player)
+        }
+        this.clearOutputBox()
+        this.setProcessEventListeners()
+    }
 }
 class Protocoll{
-    private children:any[];
+    private children:Engine[];
     private b:Board;
     private side:Boolean;
     private players:Array<any>;
@@ -264,37 +399,13 @@ class Protocoll{
         this.side=false;
         this.b=new Board();
         this.players=this.settings.getPlayers()
-        this.children=[undefined,undefined]
-        if(this.players[0]!='human'){
-            this.children[0]=execFile('./engines/'+this.players[0])
-            this.startEngine()
-        }
-        if(this.players[1]!='human'){
-            this.children[1]=execFile('./engines/'+this.players[1])
-        }
-        this.setInputEventListeners()
-        this.setChildrenEventListeners()
+        this.children=[
+            new Engine(this.players[0], 0, this.getTryMoveWrapper(), Protocoll.isValidEngineOutput),
+            new Engine(this.players[1], 1, this.getTryMoveWrapper(), Protocoll.isValidEngineOutput)
+        ]
+        this.settings.setEngines(this.children[0].setProcessWrapper(),this.children[1].setProcessWrapper())
     }
-    setInputEventListeners(){
-        for(let i=0;i<2;i++){
-            const el = (document.getElementById('engineCommunicationInput'+i) as HTMLInputElement);
-            el.addEventListener('keydown',(event:KeyboardEvent)=>{
-                if(event.key==='Enter'){
-                    const target=(event.target as HTMLInputElement)
-                    let command = target.value
-                    console.log(command)
-                    const child=document.createElement('div')
-                    child.classList.add('inputBlock')
-                    child.innerText=command+'<<<<'
-                    const parent=document.getElementById('engineCommunicationDisplay'+i) as HTMLElement
-                    parent.insertBefore(child,parent.firstChild)
-                    target.value=''
-                    this.children[i].stdin.write(command+'\n')
-                }
-            })
-        }
-    }
-    isValidEngineOutput(line:string){
+    static isValidEngineOutput(line:string){
         if(line.match('bestmove [0-6]')){
             return true
         }
@@ -314,109 +425,15 @@ class Protocoll{
         }
         return false
     }
-    setChildrenEventListeners(){
-        if(this.children[0]!==undefined){
-            this.children[0].stdout.on('data',(data:string)=>{
-                const el = document.getElementById('engineCommunicationDisplay0') as HTMLDivElement
-                console.log(data)
-                let lines=data.split('\n').filter((line:string)=>{
-                    return this.isValidEngineOutput(line)
-                })
-                const child=document.createElement('div')
-                child.classList.add('outputBlock')
-                const span=document.createElement('span')
-                for(let i=0;i<lines.length;i++){
-                    span.innerText=lines[i]
-                    child.appendChild(span)
-                }
-                el.insertBefore(child,el.firstChild)
-                const prefix='bestmove '
-                if(data.includes(prefix)){
-                    data=data.substring(data.lastIndexOf(prefix)+prefix.length,data.length)
-                    let int=parseInt(data)
-                    this.children[0].stdin.write('stop\n')
-                    this.tryMove(int,this.players[0])
-                }
-            })
-            this.children[0].stderr.on('data',(data:any)=>{console.log(data)})
-        }
-        if(this.children[1]!==undefined){
-            this.children[1].stdout.on('data',(data:string)=>{
-                const el = document.getElementById('engineCommunicationDisplay1') as HTMLDivElement
-                let lines=data.split('\n').filter((line:string)=>{
-                    return this.isValidEngineOutput(line)
-                })
-                const child=document.createElement('div')
-                child.classList.add('outputBlock')
-                const span=document.createElement('span')
-                for(let i=0;i<lines.length;i++){
-                    span.innerText=lines[i]
-                    child.appendChild(span)
-                }
-                el.insertBefore(child,el.firstChild)
-                const prefix='bestmove '
-                if(data.includes(prefix)){
-                    data=data.substring(data.lastIndexOf(prefix)+prefix.length,data.length)
-                    let int=parseInt(data)
-                    this.children[1].stdin.write('stop\n')
-                    this.tryMove(int,this.players[1])
-                }
-            })
-            this.children[1].stderr.on('data',(data:any)=>{console.log(data)})
+    getTryMoveWrapper():Function{
+        return (move:number,entity:string)=>{
+            return this.tryMove(move,entity)
         }
     }
-    ensureChildrenMatchPlayers(){
-        console.log(this.players)
-        if(this.players[0]==='human'){
-            if(this.children[0]!==undefined){
-                this.children[0].kill('SIGINT')
-                this.children[0]=undefined
-            }
-        }
-        else{
-            let killedProcess=false
-            if(this.children[0]!==undefined){
-                let file = (this.children[0] as ChildProcess).spawnfile
-                file=file.substring(file.lastIndexOf('/')+1,file.length)
-                if(this.players[0]!==file){
-                    this.children[0].kill('SIGINT')
-                    killedProcess=true
-                }
-            }
-            this.children[0]=execFile('./engines/'+this.players[0])
-            if(!this.side && killedProcess){
-                this.startEngine()
-            }
-        }
-        if(this.players[1]==='human'){
-            if(this.children[1]!==undefined){
-                this.children[1].kill('SIGINT')
-                this.children[1]=undefined
-            }
-        }
-        else{
-            let killedProcess=false
-            if(this.children[1]!==undefined){
-                let file = (this.children[1] as ChildProcess).spawnfile
-                file=file.substring(file.lastIndexOf('/')+1,file.length)
-                if(this.players[1]!==file){
-                    this.children[1].kill('SIGINT')
-                    killedProcess=true
-                }
-            }
-            this.children[1]=execFile('./engines/'+this.players[1])
-            if(this.side && killedProcess){
-                this.startEngine()
-            }
-        }
-        this.setChildrenEventListeners()
-    }
-    tryMove(move:number,entity:any){
+    tryMove(move:number,entity:string){
+        console.log(this,move,entity)
         const gameResult=this.b.getResult()
-        if(!gameResult){
-            this.ensureChildrenMatchPlayers()
-        }
-        else if(gameResult!=GameResult.Draw) {
+        if(gameResult && gameResult!=GameResult.Draw) {
             visualizeWinningRow(this.b.getWinningRow())
             return
         }
@@ -428,6 +445,7 @@ class Protocoll{
         if(list.moves.includes(move)){
             this.b.makeMove(move)
             visualizeBoard(this.b)
+            const gameResult=this.b.getResult()
             console.log('RESULT: '+gameResult)
             if(gameResult){
                 if(gameResult!=GameResult.Draw) visualizeWinningRow(this.b.getWinningRow())
@@ -440,34 +458,22 @@ class Protocoll{
     }
     private startEngine(){
         const asInd=(this.side)?1:0
-        if(this.players[asInd] == 'human'){
-            console.log('humans turn')
-            return
+        if(this.b.getHistory().length>0){
+            this.children[asInd].execute('position '+this.b.getHistory()+'\ngo movetime 1000\n')
         }
-        this.children[asInd].stdin.write("position "+this.b.getHistory()+"\n")
-        this.children[asInd].stdin.write("go movetime 1000\n")
+        else{
+            this.children[asInd].execute('go movetime 1000\n')
+        }
     }
     reset(){
-        (document.getElementById('engineCommunicationDisplay0') as HTMLInputElement).innerHTML='';
-        (document.getElementById('engineCommunicationDisplay1') as HTMLInputElement).innerHTML='';
         this.side=false
         this.b=new Board()
         visualizeBoard(this.b)
-        if(this.players[0]!='human'){
-            if(this.children[0]!==undefined){
-                this.children[0].kill('SIGINT')
-            }
-            this.children[0]=execFile('./engines/'+this.players[0])
+        this.children[0].reset()
+        this.children[1].reset()
+        if(this.players[0]!=='human'){
             this.startEngine()
         }
-        if(this.players[1]!='human'){
-            if(this.children[1]!==undefined){
-                this.children[1].kill('SIGINT')
-            }
-            this.children[1]=execFile('./engines/'+this.players[1])
-        }
-        this.setChildrenEventListeners()
-        console.log(this.children)
     }
 }
 function main(){
