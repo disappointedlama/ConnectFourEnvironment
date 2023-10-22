@@ -58,11 +58,44 @@
 .winning-circle{
     background-color: white;
 }
-#settings{
+.sidebar{
     display: flex;
     flex-direction: row;
-    border:2px solid black;
+}
+.sidebar>div{
+    border: 2px solid black;
+    border-left: 0px;
+}
+.sidebar:first-child{
+    border-left:2px solid black;
+}
+#settings{
+    display: flex;
+    flex-direction: column;
 }
 .hidden{
     display: none;
+}
+#communicationContainer{
+    display: flex;
+    flex-direction: row;
+}
+.engineOutput{
+    height:calc(var(--baseWidth)*6/7 - 1rem);
+    max-width: 20vw;
+    display: flex;
+    flex-direction: column-reverse;
+    overflow-y: scroll;
+}
+.engineInput{
+    height: 1rem;
+    border:0px;
+    border-top:1px solid black;
+}
+.outputBlock{
+    color:blue;
+}
+.inputBlock{
+    color:red;
+    text-align: right;
 }

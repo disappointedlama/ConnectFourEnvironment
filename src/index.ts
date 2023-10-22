@@ -272,12 +272,64 @@ class Protocoll{
         if(this.players[1]!='human'){
             this.children[1]=execFile('./engines/'+this.players[1])
         }
+        this.setInputEventListeners()
         this.setChildrenEventListeners()
+    }
+    setInputEventListeners(){
+        for(let i=0;i<2;i++){
+            const el = (document.getElementById('engineCommunicationInput'+i) as HTMLInputElement);
+            el.addEventListener('keydown',(event:KeyboardEvent)=>{
+                if(event.key==='Enter'){
+                    const target=(event.target as HTMLInputElement)
+                    let command = target.value
+                    console.log(command)
+                    const child=document.createElement('div')
+                    child.classList.add('inputBlock')
+                    child.innerText=command+'<<<<'
+                    const parent=document.getElementById('engineCommunicationDisplay'+i) as HTMLElement
+                    parent.insertBefore(child,parent.firstChild)
+                    target.value=''
+                    this.children[i].stdin.write(command+'\n')
+                }
+            })
+        }
+    }
+    isValidEngineOutput(line:string){
+        if(line.match('bestmove [0-6]')){
+            return true
+        }
+        if(line.startsWith('info ')){
+            const potentialArguments=['info depth ','eval ','nodes ','pv ']
+            const mustMatch=['([0-9])+','-?([0-9])+','([0-9])+','([0-9] )+']
+            for(let i=0;i<potentialArguments.length;i++){
+                if(line.startsWith(potentialArguments[i])){
+                    line=line.replace(potentialArguments[i],'')
+                    let sub=line.substring(0,line.indexOf(' '))
+                    if(!sub.match(mustMatch[i])){
+                        return false
+                    }
+                }
+            }
+            return true
+        }
+        return false
     }
     setChildrenEventListeners(){
         if(this.children[0]!==undefined){
             this.children[0].stdout.on('data',(data:string)=>{
+                const el = document.getElementById('engineCommunicationDisplay0') as HTMLDivElement
                 console.log(data)
+                let lines=data.split('\n').filter((line:string)=>{
+                    return this.isValidEngineOutput(line)
+                })
+                const child=document.createElement('div')
+                child.classList.add('outputBlock')
+                const span=document.createElement('span')
+                for(let i=0;i<lines.length;i++){
+                    span.innerText=lines[i]
+                    child.appendChild(span)
+                }
+                el.insertBefore(child,el.firstChild)
                 const prefix='bestmove '
                 if(data.includes(prefix)){
                     data=data.substring(data.lastIndexOf(prefix)+prefix.length,data.length)
@@ -290,7 +342,18 @@ class Protocoll{
         }
         if(this.children[1]!==undefined){
             this.children[1].stdout.on('data',(data:string)=>{
-                console.log(data)
+                const el = document.getElementById('engineCommunicationDisplay1') as HTMLDivElement
+                let lines=data.split('\n').filter((line:string)=>{
+                    return this.isValidEngineOutput(line)
+                })
+                const child=document.createElement('div')
+                child.classList.add('outputBlock')
+                const span=document.createElement('span')
+                for(let i=0;i<lines.length;i++){
+                    span.innerText=lines[i]
+                    child.appendChild(span)
+                }
+                el.insertBefore(child,el.firstChild)
                 const prefix='bestmove '
                 if(data.includes(prefix)){
                     data=data.substring(data.lastIndexOf(prefix)+prefix.length,data.length)
@@ -311,16 +374,17 @@ class Protocoll{
             }
         }
         else{
+            let killedProcess=false
             if(this.children[0]!==undefined){
                 let file = (this.children[0] as ChildProcess).spawnfile
                 file=file.substring(file.lastIndexOf('/')+1,file.length)
-                console.log(file)
                 if(this.players[0]!==file){
                     this.children[0].kill('SIGINT')
+                    killedProcess=true
                 }
             }
             this.children[0]=execFile('./engines/'+this.players[0])
-            if(!this.side){
+            if(!this.side && killedProcess){
                 this.startEngine()
             }
         }
@@ -331,16 +395,17 @@ class Protocoll{
             }
         }
         else{
+            let killedProcess=false
             if(this.children[1]!==undefined){
                 let file = (this.children[1] as ChildProcess).spawnfile
                 file=file.substring(file.lastIndexOf('/')+1,file.length)
-                console.log(file)
                 if(this.players[1]!==file){
                     this.children[1].kill('SIGINT')
+                    killedProcess=true
                 }
             }
             this.children[1]=execFile('./engines/'+this.players[1])
-            if(this.side){
+            if(this.side && killedProcess){
                 this.startEngine()
             }
         }
@@ -383,6 +448,8 @@ class Protocoll{
         this.children[asInd].stdin.write("go movetime 1000\n")
     }
     reset(){
+        (document.getElementById('engineCommunicationDisplay0') as HTMLInputElement).innerHTML='';
+        (document.getElementById('engineCommunicationDisplay1') as HTMLInputElement).innerHTML='';
         this.side=false
         this.b=new Board()
         visualizeBoard(this.b)
@@ -391,17 +458,6 @@ class Protocoll{
                 this.children[0].kill('SIGINT')
             }
             this.children[0]=execFile('./engines/'+this.players[0])
-            this.children[0].stdout.on('data',(data:string)=>{
-                console.log(data)
-                const prefix='bestmove '
-                if(data.includes(prefix)){
-                    data=data.substring(data.lastIndexOf(prefix)+prefix.length,data.length)
-                    let int=parseInt(data)
-                    this.children[0].stdin.write('stop\n')
-                    this.tryMove(int,this.players[0])
-                }
-            })
-            this.children[0].stderr.on('data',(data:any)=>{console.log(data)})
             this.startEngine()
         }
         if(this.players[1]!='human'){
@@ -409,18 +465,8 @@ class Protocoll{
                 this.children[1].kill('SIGINT')
             }
             this.children[1]=execFile('./engines/'+this.players[1])
-            this.children[1].stdout.on('data',(data:string)=>{
-                console.log(data)
-                const prefix='bestmove '
-                if(data.includes(prefix)){
-                    data=data.substring(data.lastIndexOf(prefix)+prefix.length,data.length)
-                    let int=parseInt(data)
-                    this.children[1].stdin.write('stop\n')
-                    this.tryMove(int,this.players[1])
-                }
-            })
-            this.children[1].stderr.on('data',(data:any)=>{console.log(data)})
         }
+        this.setChildrenEventListeners()
         console.log(this.children)
     }
 }

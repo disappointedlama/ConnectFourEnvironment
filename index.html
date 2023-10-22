@@ -8,16 +8,24 @@
     <div>
         <div style="display: flex; flex-direction: row;">
             <div id="board" class="board"></div>
-            <div id="engineOutput0"></div>
-            <div id="engineOutput1"></div>
-            <div id="settings">
-                <div style="display: flex; flex-direction: column;">
+            <div class="sidebar">
+                <div id="settings">
                     <div>Player1:<select id="player0"></select></div>
                     <div>Player2:<select id="player1"></select></div>
+                    <button onclick="resetGame()">Restart</button>
+                </div>
+                <div id="communicationContainer">
+                    <div style="display: flex; flex-direction: column;">
+                        <div class="engineOutput" id="engineCommunicationDisplay0"></div>
+                        <input class="engineInput" id="engineCommunicationInput0" type="text">
+                    </div>
+                    <div style="display: flex; flex-direction: column; border-left: 2px solid black;">
+                        <div class="engineOutput" id="engineCommunicationDisplay1"></div>
+                        <input class="engineInput" id="engineCommunicationInput1" type="text">
+                    </div>
                 </div>
             </div>
         </div>
-        <button onclick="resetGame()">Restart</button>
     </div>
     <script src="./build/src/index.js"></script>
 </body>
