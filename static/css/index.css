@@ -1,6 +1,10 @@
 :root{
     --baseWidth:80vh;
     --largeSquareWidth:calc(var(--baseWidth)/7);
+    --border-color:#0a8ced;
+}
+body{
+    background-color: #666666;
 }
 .board{
     display: flex;
@@ -63,11 +67,11 @@
     flex-direction: row;
 }
 .sidebar>div{
-    border: 2px solid black;
+    border: 2px solid var(--border-color);
     border-left: 0px;
 }
 .sidebar:first-child{
-    border-left:2px solid black;
+    border-left:2px solid var(--border-color);
 }
 #settings{
     display: flex;
@@ -87,10 +91,13 @@
     flex-direction: column-reverse;
     overflow-y: scroll;
 }
+.engineOutput::-webkit-scrollbar{
+    display: none;
+}
 .engineInput{
     height: 1rem;
     border:0px;
-    border-top:1px solid black;
+    border-top:1px solid var(--border-color);
 }
 .outputBlock{
     color:blue;
