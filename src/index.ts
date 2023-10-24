@@ -225,10 +225,16 @@ class Settings{
             child1.innerText=this.engines[i]
             child1.value=this.engines[i]
             child1.id="selectElement0"+this.engines[i]
+            if(this.engines[i]===this.players[1] && this.players[1]!=='human'){
+                child1.disabled=true
+            }
             const child2 = document.createElement('option')
             child2.innerText=this.engines[i]
             child2.value=this.engines[i]
             child2.id="selectElement1"+this.engines[i]
+            if(this.engines[i]===this.players[0] && this.players[0]!=='human'){
+                child2.disabled=true
+            }
             el1.appendChild(child1)
             el2.appendChild(child2)
         }
