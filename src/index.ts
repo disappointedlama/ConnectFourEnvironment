@@ -333,6 +333,8 @@ class Engine{
             }
         })
         this.process.stderr?.on('data',(data:any)=>{console.log(data)})
+        this.process.on('close',(data:any)=>{console.log("Close: ",data)})
+        this.process.on('exit',(data:any)=>{console.log("Exit: ",data)})
     }
     clearOutputBox(){
         (document.getElementById('engineCommunicationDisplay'+this.index) as HTMLInputElement).innerHTML='';
