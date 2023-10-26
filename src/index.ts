@@ -1,4 +1,4 @@
-import { execFile, ChildProcess } from 'child_process';
+import { execFile, spawn, ChildProcess } from 'child_process';
 import { readdirSync } from 'original-fs';
 enum MvEnum{
     m0=0,mv1=1,mv2=2,mv3=3,mv4=4,mv5=5,mv6=6,noMove=7
@@ -213,7 +213,7 @@ class Settings{
     constructor(){
         this.notifyEngines=[undefined,undefined]
         this.engines=readdirSync('./engines/').filter((value:string)=>{
-            if(value.endsWith('.exe')) return true
+            if(value.endsWith('.exe')||value.endsWith('.cmd')) return true
             return false;
         })
         this.engines.unshift('human')
@@ -315,8 +315,18 @@ class Engine{
     }
     private setProcessEventListeners(){
         if(this.process===undefined) return
-        this.process.stdout?.on('data',(data:string)=>{
+        this.process.stdout?.on('data',(out:ArrayBuffer|string)=>{
             const el = document.getElementById('engineCommunicationDisplay'+this.index) as HTMLDivElement
+            let data=''
+            if(typeof out !== typeof ''){
+                console.log(out)
+                let decoder=new TextDecoder()
+                data=decoder.decode(out as ArrayBuffer)
+            }
+            else{
+                data=out as string
+            }
+            console.log(data)
             let lines=data.split('\n').filter((line:string)=>{
                 return this.verifyEngineOutput(line)
             })
@@ -332,9 +342,6 @@ class Engine{
             if(data.includes(prefix)){
                 data=data.substring(data.lastIndexOf(prefix)+prefix.length,data.length)
                 let int=parseInt(data)
-                if(this.process!==undefined){
-                    this.process.stdin?.write('stop\n')
-                }
                 this.callToMove(int,this.player)
             }
         })
@@ -347,7 +354,6 @@ class Engine{
     }
     execute(cmd:string){
         if(this.process!==undefined){
-            this.process.stdin?.write('stop\n')
             this.process.stdin?.write(cmd)
         }
         else{
@@ -367,7 +373,12 @@ class Engine{
             }
             else{
                 this.player=file
-                this.process=execFile('./engines/'+file)
+                if(file.endsWith('.cmd')){
+                    this.process=spawn('.\\engines\\'+file,[],{stdio:'pipe',shell:true})
+                }
+                else{
+                    this.process=execFile('./engines/'+file)
+                }
                 this.clearOutputBox()
                 this.setProcessEventListeners()
             }
@@ -381,7 +392,12 @@ class Engine{
                     this.process=undefined
                 }
                 else{
-                    this.process=execFile('./engines/'+file)
+                    if(file.endsWith('.cmd')){
+                        this.process=spawn('.\\engines\\'+file,[],{stdio:'pipe',shell:true})
+                    }
+                    else{
+                        this.process=execFile('./engines/'+file)
+                    }
                 }
                 this.setProcessEventListeners()
             }
@@ -390,7 +406,12 @@ class Engine{
     reset(){
         if(this.process!==undefined){
             this.process.kill('SIGINT')
-            this.process=execFile('./engines/'+this.player)
+            if(this.player.endsWith('.cmd')){
+                this.process=spawn('.\\engines\\'+this.player,[],{stdio:'pipe',shell:true})
+            }
+            else{
+                this.process=execFile('./engines/'+this.player)
+            }
         }
         this.clearOutputBox()
         this.setProcessEventListeners()
@@ -467,7 +488,11 @@ class Protocoll{
     private startEngine(){
         const asInd=(this.side)?1:0
         if(this.b.getHistory().length>0){
-            this.children[asInd].execute('position '+this.b.getHistory()+'\ngo movetime 1000\n')
+            this.children[asInd].execute('stop\n')
+            this.children[asInd].execute('position '+this.b.getHistory()+'\n')
+            setTimeout(()=>{
+                this.children[asInd].execute('go movetime 1000\n')
+            },10)
         }
         else{
             this.children[asInd].execute('go movetime 1000\n')

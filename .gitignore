@@ -1,6 +1,7 @@
 build/*
 
 engines/*.exe
+engines/*.cmd
 
 .DS_Store.env.gclient_done**/.npmrc.tags*.vs/.vscode/*.log*.pyc
 *.sln
