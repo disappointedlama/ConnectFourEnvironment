@@ -374,7 +374,7 @@ class Engine{
             else{
                 this.player=file
                 if(file.endsWith('.cmd')){
-                    this.process=spawn('.\\engines\\'+file,[],{stdio:'pipe',shell:true})
+                    this.process=spawn('.\\engines\\'+file,[],{stdio:'pipe',shell:true,killSignal:'SIGINT'})
                 }
                 else{
                     this.process=execFile('./engines/'+file)
@@ -393,7 +393,7 @@ class Engine{
                 }
                 else{
                     if(file.endsWith('.cmd')){
-                        this.process=spawn('.\\engines\\'+file,[],{stdio:'pipe',shell:true})
+                        this.process=spawn('.\\engines\\'+file,[],{stdio:'pipe',shell:true,killSignal:'SIGINT'})
                     }
                     else{
                         this.process=execFile('./engines/'+file)
@@ -407,7 +407,7 @@ class Engine{
         if(this.process!==undefined){
             this.process.kill('SIGINT')
             if(this.player.endsWith('.cmd')){
-                this.process=spawn('.\\engines\\'+this.player,[],{stdio:'pipe',shell:true})
+                this.process=spawn('.\\engines\\'+this.player,[],{stdio:'pipe',shell:true,killSignal:'SIGINT'})
             }
             else{
                 this.process=execFile('./engines/'+this.player)
