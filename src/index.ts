@@ -282,7 +282,12 @@ class Engine{
             this.process=undefined
         }
         else{
-            this.process=execFile('./engines/'+file)
+            if(file.endsWith('.cmd')){
+                this.process=spawn('.\\engines\\'+file,[],{stdio:'pipe',shell:true,killSignal:'SIGINT'})
+            }
+            else{
+                this.process=execFile('./engines/'+file)
+            }
         }
         this.player=file
         this.index=index
