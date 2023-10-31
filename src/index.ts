@@ -283,7 +283,7 @@ class Engine{
         }
         else{
             if(file.endsWith('.cmd')){
-                this.process=spawn('.\\engines\\'+file,[],{stdio:'pipe',shell:true,killSignal:'SIGINT'})
+                this.process=spawn('.\\engines\\'+file,[],{stdio:'pipe',shell:true,killSignal:'SIGTERM'})
             }
             else{
                 this.process=execFile('./engines/'+file)
@@ -379,7 +379,7 @@ class Engine{
             else{
                 this.player=file
                 if(file.endsWith('.cmd')){
-                    this.process=spawn('.\\engines\\'+file,[],{stdio:'pipe',shell:true,killSignal:'SIGINT'})
+                    this.process=spawn('.\\engines\\'+file,[],{stdio:'pipe',shell:true,killSignal:'SIGTERM'})
                 }
                 else{
                     this.process=execFile('./engines/'+file)
@@ -391,14 +391,14 @@ class Engine{
         else{
             if(file!==this.player){
                 this.player=file
-                this.process?.kill('SIGINT')
+                this.process?.kill('SIGTERM')
                 this.clearOutputBox()
                 if(file==='human'){
                     this.process=undefined
                 }
                 else{
                     if(file.endsWith('.cmd')){
-                        this.process=spawn('.\\engines\\'+file,[],{stdio:'pipe',shell:true,killSignal:'SIGINT'})
+                        this.process=spawn('.\\engines\\'+file,[],{stdio:'pipe',shell:true,killSignal:'SIGTERM'})
                     }
                     else{
                         this.process=execFile('./engines/'+file)
@@ -410,9 +410,9 @@ class Engine{
     }
     reset(){
         if(this.process!==undefined){
-            this.process.kill('SIGINT')
+            this.process.kill('SIGTERM')
             if(this.player.endsWith('.cmd')){
-                this.process=spawn('.\\engines\\'+this.player,[],{stdio:'pipe',shell:true,killSignal:'SIGINT'})
+                this.process=spawn('.\\engines\\'+this.player,[],{stdio:'pipe',shell:true,killSignal:'SIGTERM'})
             }
             else{
                 this.process=execFile('./engines/'+this.player)
